@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/hashicorp/consul/agent/config"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/agent/token"
 	"github.com/hashicorp/consul/api"
@@ -89,7 +90,7 @@ type localState struct {
 }
 
 // NewLocalState creates a  is used to initialize the local state
-func NewLocalState(c *Config, lg *log.Logger, tokens *token.Store) *localState {
+func NewLocalState(c *config.Config, lg *log.Logger, tokens *token.Store) *localState {
 	lc := localStateConfig{
 		AEInterval:          c.AEInterval,
 		AdvertiseAddr:       c.AdvertiseAddr,

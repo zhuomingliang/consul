@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/agent/config"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-uuid"
@@ -127,7 +128,7 @@ func TestRemoteExecGetSpec_ACLDeny(t *testing.T) {
 	testRemoteExecGetSpec(t, cfg, "root", false)
 }
 
-func testRemoteExecGetSpec(t *testing.T, c *Config, token string, shouldSucceed bool) {
+func testRemoteExecGetSpec(t *testing.T, c *config.Config, token string, shouldSucceed bool) {
 	a := NewTestAgent(t.Name(), c)
 	defer a.Shutdown()
 
@@ -192,7 +193,7 @@ func TestRemoteExecWrites_ACLDeny(t *testing.T) {
 	testRemoteExecWrites(t, cfg, "root", false)
 }
 
-func testRemoteExecWrites(t *testing.T, c *Config, token string, shouldSucceed bool) {
+func testRemoteExecWrites(t *testing.T, c *config.Config, token string, shouldSucceed bool) {
 	a := NewTestAgent(t.Name(), c)
 	defer a.Shutdown()
 

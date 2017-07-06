@@ -8,6 +8,7 @@ import (
 	"time"
 
 	rawacl "github.com/hashicorp/consul/acl"
+	"github.com/hashicorp/consul/agent/config"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/hashicorp/consul/types"
@@ -42,7 +43,7 @@ func (m *MockServer) GetPolicy(args *structs.ACLPolicyRequest, reply *structs.AC
 func TestACL_Version8(t *testing.T) {
 	t.Parallel()
 	cfg := TestConfig()
-	cfg.ACLEnforceVersion8 = Bool(false)
+	cfg.ACLEnforceVersion8 = config.Bool(false)
 	a := NewTestAgent(t.Name(), cfg)
 	defer a.Shutdown()
 
@@ -66,7 +67,7 @@ func TestACL_Disabled(t *testing.T) {
 	t.Parallel()
 	cfg := TestACLConfig()
 	cfg.ACLDisabledTTL = 10 * time.Millisecond
-	cfg.ACLEnforceVersion8 = Bool(true)
+	cfg.ACLEnforceVersion8 = config.Bool(true)
 	a := NewTestAgent(t.Name(), cfg)
 	defer a.Shutdown()
 
@@ -119,7 +120,7 @@ func TestACL_Disabled(t *testing.T) {
 func TestACL_Special_IDs(t *testing.T) {
 	t.Parallel()
 	cfg := TestACLConfig()
-	cfg.ACLEnforceVersion8 = Bool(true)
+	cfg.ACLEnforceVersion8 = config.Bool(true)
 	cfg.ACLAgentMasterToken = "towel"
 	a := NewTestAgent(t.Name(), cfg)
 	defer a.Shutdown()
@@ -178,7 +179,7 @@ func TestACL_Down_Deny(t *testing.T) {
 	t.Parallel()
 	cfg := TestACLConfig()
 	cfg.ACLDownPolicy = "deny"
-	cfg.ACLEnforceVersion8 = Bool(true)
+	cfg.ACLEnforceVersion8 = config.Bool(true)
 
 	a := NewTestAgent(t.Name(), cfg)
 	defer a.Shutdown()
@@ -209,7 +210,7 @@ func TestACL_Down_Allow(t *testing.T) {
 	t.Parallel()
 	cfg := TestACLConfig()
 	cfg.ACLDownPolicy = "allow"
-	cfg.ACLEnforceVersion8 = Bool(true)
+	cfg.ACLEnforceVersion8 = config.Bool(true)
 
 	a := NewTestAgent(t.Name(), cfg)
 	defer a.Shutdown()
@@ -240,7 +241,7 @@ func TestACL_Down_Extend(t *testing.T) {
 	t.Parallel()
 	cfg := TestACLConfig()
 	cfg.ACLDownPolicy = "extend-cache"
-	cfg.ACLEnforceVersion8 = Bool(true)
+	cfg.ACLEnforceVersion8 = config.Bool(true)
 
 	a := NewTestAgent(t.Name(), cfg)
 	defer a.Shutdown()
@@ -318,7 +319,7 @@ func TestACL_Down_Extend(t *testing.T) {
 func TestACL_Cache(t *testing.T) {
 	t.Parallel()
 	cfg := TestACLConfig()
-	cfg.ACLEnforceVersion8 = Bool(true)
+	cfg.ACLEnforceVersion8 = config.Bool(true)
 
 	a := NewTestAgent(t.Name(), cfg)
 	defer a.Shutdown()
@@ -501,7 +502,7 @@ func catalogPolicy(req *structs.ACLPolicyRequest, reply *structs.ACLPolicy) erro
 func TestACL_vetServiceRegister(t *testing.T) {
 	t.Parallel()
 	cfg := TestACLConfig()
-	cfg.ACLEnforceVersion8 = Bool(true)
+	cfg.ACLEnforceVersion8 = config.Bool(true)
 
 	a := NewTestAgent(t.Name(), cfg)
 	defer a.Shutdown()
@@ -547,7 +548,7 @@ func TestACL_vetServiceRegister(t *testing.T) {
 func TestACL_vetServiceUpdate(t *testing.T) {
 	t.Parallel()
 	cfg := TestACLConfig()
-	cfg.ACLEnforceVersion8 = Bool(true)
+	cfg.ACLEnforceVersion8 = config.Bool(true)
 
 	a := NewTestAgent(t.Name(), cfg)
 	defer a.Shutdown()
@@ -583,7 +584,7 @@ func TestACL_vetServiceUpdate(t *testing.T) {
 func TestACL_vetCheckRegister(t *testing.T) {
 	t.Parallel()
 	cfg := TestACLConfig()
-	cfg.ACLEnforceVersion8 = Bool(true)
+	cfg.ACLEnforceVersion8 = config.Bool(true)
 
 	a := NewTestAgent(t.Name(), cfg)
 	defer a.Shutdown()
@@ -666,7 +667,7 @@ func TestACL_vetCheckRegister(t *testing.T) {
 func TestACL_vetCheckUpdate(t *testing.T) {
 	t.Parallel()
 	cfg := TestACLConfig()
-	cfg.ACLEnforceVersion8 = Bool(true)
+	cfg.ACLEnforceVersion8 = config.Bool(true)
 
 	a := NewTestAgent(t.Name(), cfg)
 	defer a.Shutdown()
@@ -722,7 +723,7 @@ func TestACL_vetCheckUpdate(t *testing.T) {
 func TestACL_filterMembers(t *testing.T) {
 	t.Parallel()
 	cfg := TestACLConfig()
-	cfg.ACLEnforceVersion8 = Bool(true)
+	cfg.ACLEnforceVersion8 = config.Bool(true)
 
 	a := NewTestAgent(t.Name(), cfg)
 	defer a.Shutdown()
@@ -758,7 +759,7 @@ func TestACL_filterMembers(t *testing.T) {
 func TestACL_filterServices(t *testing.T) {
 	t.Parallel()
 	cfg := TestACLConfig()
-	cfg.ACLEnforceVersion8 = Bool(true)
+	cfg.ACLEnforceVersion8 = config.Bool(true)
 
 	a := NewTestAgent(t.Name(), cfg)
 	defer a.Shutdown()
@@ -789,7 +790,7 @@ func TestACL_filterServices(t *testing.T) {
 func TestACL_filterChecks(t *testing.T) {
 	t.Parallel()
 	cfg := TestACLConfig()
-	cfg.ACLEnforceVersion8 = Bool(true)
+	cfg.ACLEnforceVersion8 = config.Bool(true)
 
 	a := NewTestAgent(t.Name(), cfg)
 	defer a.Shutdown()
