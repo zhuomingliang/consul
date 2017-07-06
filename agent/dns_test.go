@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/agent/config"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
@@ -3064,7 +3065,7 @@ func TestDNS_NodeLookup_TTL(t *testing.T) {
 	cfg := TestConfig()
 	cfg.DNSRecursor = recursor.Addr
 	cfg.DNSConfig.NodeTTL = 10 * time.Second
-	cfg.DNSConfig.AllowStale = Bool(true)
+	cfg.DNSConfig.AllowStale = config.Bool(true)
 	cfg.DNSConfig.MaxStale = time.Second
 	a := NewTestAgent(t.Name(), cfg)
 	defer a.Shutdown()
@@ -3182,7 +3183,7 @@ func TestDNS_ServiceLookup_TTL(t *testing.T) {
 		"db": 10 * time.Second,
 		"*":  5 * time.Second,
 	}
-	cfg.DNSConfig.AllowStale = Bool(true)
+	cfg.DNSConfig.AllowStale = config.Bool(true)
 	cfg.DNSConfig.MaxStale = time.Second
 	a := NewTestAgent(t.Name(), cfg)
 	defer a.Shutdown()
@@ -3282,7 +3283,7 @@ func TestDNS_PreparedQuery_TTL(t *testing.T) {
 		"db": 10 * time.Second,
 		"*":  5 * time.Second,
 	}
-	cfg.DNSConfig.AllowStale = Bool(true)
+	cfg.DNSConfig.AllowStale = config.Bool(true)
 	cfg.DNSConfig.MaxStale = time.Second
 	a := NewTestAgent(t.Name(), cfg)
 	defer a.Shutdown()
@@ -4026,7 +4027,7 @@ func TestDNS_NonExistingLookupEmptyAorAAAA(t *testing.T) {
 func TestDNS_PreparedQuery_AllowStale(t *testing.T) {
 	t.Parallel()
 	cfg := TestConfig()
-	cfg.DNSConfig.AllowStale = Bool(true)
+	cfg.DNSConfig.AllowStale = config.Bool(true)
 	cfg.DNSConfig.MaxStale = time.Second
 	a := NewTestAgent(t.Name(), cfg)
 	defer a.Shutdown()
@@ -4169,8 +4170,8 @@ func TestDNS_trimUDPResponse_NoTrim(t *testing.T) {
 		},
 	}
 
-	config := &DefaultConfig().DNSConfig
-	if trimmed := trimUDPResponse(config, req, resp); trimmed {
+	cfg := &config.DefaultConfig().DNSConfig
+	if trimmed := trimUDPResponse(cfg, req, resp); trimmed {
 		t.Fatalf("Bad %#v", *resp)
 	}
 
@@ -4203,10 +4204,10 @@ func TestDNS_trimUDPResponse_NoTrim(t *testing.T) {
 
 func TestDNS_trimUDPResponse_TrimLimit(t *testing.T) {
 	t.Parallel()
-	config := &DefaultConfig().DNSConfig
+	cfg := &config.DefaultConfig().DNSConfig
 
 	req, resp, expected := &dns.Msg{}, &dns.Msg{}, &dns.Msg{}
-	for i := 0; i < config.UDPAnswerLimit+1; i++ {
+	for i := 0; i < cfg.UDPAnswerLimit+1; i++ {
 		target := fmt.Sprintf("ip-10-0-1-%d.node.dc1.consul.", 185+i)
 		srv := &dns.SRV{
 			Hdr: dns.RR_Header{
@@ -4227,13 +4228,13 @@ func TestDNS_trimUDPResponse_TrimLimit(t *testing.T) {
 
 		resp.Answer = append(resp.Answer, srv)
 		resp.Extra = append(resp.Extra, a)
-		if i < config.UDPAnswerLimit {
+		if i < cfg.UDPAnswerLimit {
 			expected.Answer = append(expected.Answer, srv)
 			expected.Extra = append(expected.Extra, a)
 		}
 	}
 
-	if trimmed := trimUDPResponse(config, req, resp); !trimmed {
+	if trimmed := trimUDPResponse(cfg, req, resp); !trimmed {
 		t.Fatalf("Bad %#v", *resp)
 	}
 	if !reflect.DeepEqual(resp, expected) {
@@ -4243,7 +4244,7 @@ func TestDNS_trimUDPResponse_TrimLimit(t *testing.T) {
 
 func TestDNS_trimUDPResponse_TrimSize(t *testing.T) {
 	t.Parallel()
-	config := &DefaultConfig().DNSConfig
+	cfg := &config.DefaultConfig().DNSConfig
 
 	req, resp := &dns.Msg{}, &dns.Msg{}
 	for i := 0; i < 100; i++ {
@@ -4271,7 +4272,7 @@ func TestDNS_trimUDPResponse_TrimSize(t *testing.T) {
 
 	// We don't know the exact trim, but we know the resulting answer
 	// data should match its extra data.
-	if trimmed := trimUDPResponse(config, req, resp); !trimmed {
+	if trimmed := trimUDPResponse(cfg, req, resp); !trimmed {
 		t.Fatalf("Bad %#v", *resp)
 	}
 	if len(resp.Answer) == 0 || len(resp.Answer) != len(resp.Extra) {
@@ -4296,7 +4297,7 @@ func TestDNS_trimUDPResponse_TrimSize(t *testing.T) {
 
 func TestDNS_trimUDPResponse_TrimSizeEDNS(t *testing.T) {
 	t.Parallel()
-	config := &DefaultConfig().DNSConfig
+	cfg := &config.DefaultConfig().DNSConfig
 
 	req, resp := &dns.Msg{}, &dns.Msg{}
 
@@ -4330,10 +4331,10 @@ func TestDNS_trimUDPResponse_TrimSizeEDNS(t *testing.T) {
 	respEDNS.Extra = append(respEDNS.Extra, resp.Extra...)
 
 	// Trim each response
-	if trimmed := trimUDPResponse(config, req, resp); !trimmed {
+	if trimmed := trimUDPResponse(cfg, req, resp); !trimmed {
 		t.Errorf("expected response to be trimmed: %#v", resp)
 	}
-	if trimmed := trimUDPResponse(config, reqEDNS, respEDNS); !trimmed {
+	if trimmed := trimUDPResponse(cfg, reqEDNS, respEDNS); !trimmed {
 		t.Errorf("expected edns to be trimmed: %#v", resp)
 	}
 
@@ -4599,10 +4600,10 @@ func TestDNS_syncExtra(t *testing.T) {
 
 func TestDNS_Compression_trimUDPResponse(t *testing.T) {
 	t.Parallel()
-	config := &DefaultConfig().DNSConfig
+	cfg := &config.DefaultConfig().DNSConfig
 
 	req, m := dns.Msg{}, dns.Msg{}
-	trimUDPResponse(config, &req, &m)
+	trimUDPResponse(cfg, &req, &m)
 	if m.Compress {
 		t.Fatalf("compression should be off")
 	}
@@ -4610,7 +4611,7 @@ func TestDNS_Compression_trimUDPResponse(t *testing.T) {
 	// The trim function temporarily turns off compression, so we need to
 	// make sure the setting gets restored properly.
 	m.Compress = true
-	trimUDPResponse(config, &req, &m)
+	trimUDPResponse(cfg, &req, &m)
 	if !m.Compress {
 		t.Fatalf("compression should be on")
 	}

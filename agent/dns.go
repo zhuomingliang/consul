@@ -12,6 +12,7 @@ import (
 	"regexp"
 
 	"github.com/armon/go-metrics"
+	"github.com/hashicorp/consul/agent/config"
 	"github.com/hashicorp/consul/agent/consul"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/lib"
@@ -39,7 +40,7 @@ var InvalidDnsRe = regexp.MustCompile(`[^A-Za-z0-9\\-]+`)
 type DNSServer struct {
 	*dns.Server
 	agent     *Agent
-	config    *DNSConfig
+	config    *config.DNSConfig
 	domain    string
 	recursors []string
 	logger    *log.Logger
@@ -631,7 +632,7 @@ func syncExtra(index map[string]dns.RR, resp *dns.Msg) {
 // 1035. Enforce an arbitrary limit that can be further ratcheted down by
 // config, and then make sure the response doesn't exceed 512 bytes. Any extra
 // records will be trimmed along with answers.
-func trimUDPResponse(config *DNSConfig, req, resp *dns.Msg) (trimmed bool) {
+func trimUDPResponse(config *config.DNSConfig, req, resp *dns.Msg) (trimmed bool) {
 	numAnswers := len(resp.Answer)
 	hasExtra := len(resp.Extra) > 0
 	maxSize := defaultMaxUDPSize

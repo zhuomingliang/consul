@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/agent/config"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/agent/token"
 	"github.com/hashicorp/consul/api"
@@ -502,7 +503,7 @@ func TestAgentAntiEntropy_Services_ACLDeny(t *testing.T) {
 	cfg.ACLDatacenter = "dc1"
 	cfg.ACLMasterToken = "root"
 	cfg.ACLDefaultPolicy = "deny"
-	cfg.ACLEnforceVersion8 = Bool(true)
+	cfg.ACLEnforceVersion8 = config.Bool(true)
 	a := &TestAgent{Name: t.Name(), Config: cfg, NoInitialSync: true}
 	a.Start()
 	defer a.Shutdown()
@@ -902,7 +903,7 @@ func TestAgentAntiEntropy_Checks_ACLDeny(t *testing.T) {
 	cfg.ACLDatacenter = "dc1"
 	cfg.ACLMasterToken = "root"
 	cfg.ACLDefaultPolicy = "deny"
-	cfg.ACLEnforceVersion8 = Bool(true)
+	cfg.ACLEnforceVersion8 = config.Bool(true)
 	a := &TestAgent{Name: t.Name(), Config: cfg, NoInitialSync: true}
 	a.Start()
 	defer a.Shutdown()
