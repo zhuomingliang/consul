@@ -54,7 +54,7 @@ func TestACL_Version8(t *testing.T) {
 			return nil
 		},
 	}
-	if err := a.registerEndpoint("ACL", &m); err != nil {
+	if err := a.RegisterEndpoint("ACL", &m); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -77,7 +77,7 @@ func TestACL_Disabled(t *testing.T) {
 			return errors.New(aclDisabled)
 		},
 	}
-	if err := a.registerEndpoint("ACL", &m); err != nil {
+	if err := a.RegisterEndpoint("ACL", &m); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -134,7 +134,7 @@ func TestACL_Special_IDs(t *testing.T) {
 			return errors.New(aclNotFound)
 		},
 	}
-	if err := a.registerEndpoint("ACL", &m); err != nil {
+	if err := a.RegisterEndpoint("ACL", &m); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	_, err := a.resolveToken("")
@@ -190,7 +190,7 @@ func TestACL_Down_Deny(t *testing.T) {
 			return fmt.Errorf("ACLs are broken")
 		},
 	}
-	if err := a.registerEndpoint("ACL", &m); err != nil {
+	if err := a.RegisterEndpoint("ACL", &m); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -221,7 +221,7 @@ func TestACL_Down_Allow(t *testing.T) {
 			return fmt.Errorf("ACLs are broken")
 		},
 	}
-	if err := a.registerEndpoint("ACL", &m); err != nil {
+	if err := a.RegisterEndpoint("ACL", &m); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -263,7 +263,7 @@ func TestACL_Down_Extend(t *testing.T) {
 			return nil
 		},
 	}
-	if err := a.registerEndpoint("ACL", &m); err != nil {
+	if err := a.RegisterEndpoint("ACL", &m); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -343,7 +343,7 @@ func TestACL_Cache(t *testing.T) {
 			return nil
 		},
 	}
-	if err := a.registerEndpoint("ACL", &m); err != nil {
+	if err := a.RegisterEndpoint("ACL", &m); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -508,7 +508,7 @@ func TestACL_vetServiceRegister(t *testing.T) {
 	defer a.Shutdown()
 
 	m := MockServer{catalogPolicy}
-	if err := a.registerEndpoint("ACL", &m); err != nil {
+	if err := a.RegisterEndpoint("ACL", &m); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -554,7 +554,7 @@ func TestACL_vetServiceUpdate(t *testing.T) {
 	defer a.Shutdown()
 
 	m := MockServer{catalogPolicy}
-	if err := a.registerEndpoint("ACL", &m); err != nil {
+	if err := a.RegisterEndpoint("ACL", &m); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -590,7 +590,7 @@ func TestACL_vetCheckRegister(t *testing.T) {
 	defer a.Shutdown()
 
 	m := MockServer{catalogPolicy}
-	if err := a.registerEndpoint("ACL", &m); err != nil {
+	if err := a.RegisterEndpoint("ACL", &m); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -673,7 +673,7 @@ func TestACL_vetCheckUpdate(t *testing.T) {
 	defer a.Shutdown()
 
 	m := MockServer{catalogPolicy}
-	if err := a.registerEndpoint("ACL", &m); err != nil {
+	if err := a.RegisterEndpoint("ACL", &m); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -729,7 +729,7 @@ func TestACL_filterMembers(t *testing.T) {
 	defer a.Shutdown()
 
 	m := MockServer{catalogPolicy}
-	if err := a.registerEndpoint("ACL", &m); err != nil {
+	if err := a.RegisterEndpoint("ACL", &m); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -765,7 +765,7 @@ func TestACL_filterServices(t *testing.T) {
 	defer a.Shutdown()
 
 	m := MockServer{catalogPolicy}
-	if err := a.registerEndpoint("ACL", &m); err != nil {
+	if err := a.RegisterEndpoint("ACL", &m); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -796,7 +796,7 @@ func TestACL_filterChecks(t *testing.T) {
 	defer a.Shutdown()
 
 	m := MockServer{catalogPolicy}
-	if err := a.registerEndpoint("ACL", &m); err != nil {
+	if err := a.RegisterEndpoint("ACL", &m); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
