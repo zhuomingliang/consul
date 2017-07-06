@@ -10,6 +10,7 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/acl"
 	"github.com/hashicorp/consul/agent/config"
+	"github.com/hashicorp/consul/agent/local"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/types"
 	"github.com/hashicorp/golang-lru"
@@ -274,9 +275,9 @@ func (a *Agent) vetServiceRegister(token string, service *structs.NodeService) e
 	}
 
 	// Vet any service that might be getting overwritten.
-	services := a.state.Services()
+	services := a.State.Services()
 	if existing, ok := services[service.ID]; ok {
-		if !acl.ServiceWrite(existing.Service) {
+		if !acl.ServiceWrite(existing.Service.Service) {
 			return errPermissionDenied
 		}
 	}
@@ -297,9 +298,9 @@ func (a *Agent) vetServiceUpdate(token string, serviceID string) error {
 	}
 
 	// Vet any changes based on the existing services's info.
-	services := a.state.Services()
+	services := a.State.Services()
 	if existing, ok := services[serviceID]; ok {
-		if !acl.ServiceWrite(existing.Service) {
+		if !acl.ServiceWrite(existing.Service.Service) {
 			return errPermissionDenied
 		}
 	} else {
@@ -333,10 +334,10 @@ func (a *Agent) vetCheckRegister(token string, check *structs.HealthCheck) error
 	}
 
 	// Vet any check that might be getting overwritten.
-	checks := a.state.Checks()
+	checks := a.State.Checks()
 	if existing, ok := checks[check.CheckID]; ok {
-		if len(existing.ServiceName) > 0 {
-			if !acl.ServiceWrite(existing.ServiceName) {
+		if len(existing.Check.ServiceName) > 0 {
+			if !acl.ServiceWrite(existing.Check.ServiceName) {
 				return errPermissionDenied
 			}
 		} else {
@@ -361,10 +362,10 @@ func (a *Agent) vetCheckUpdate(token string, checkID types.CheckID) error {
 	}
 
 	// Vet any changes based on the existing check's info.
-	checks := a.state.Checks()
+	checks := a.State.Checks()
 	if existing, ok := checks[checkID]; ok {
-		if len(existing.ServiceName) > 0 {
-			if !acl.ServiceWrite(existing.ServiceName) {
+		if len(existing.Check.ServiceName) > 0 {
+			if !acl.ServiceWrite(existing.Check.ServiceName) {
 				return errPermissionDenied
 			}
 		} else {
@@ -406,51 +407,52 @@ func (a *Agent) filterMembers(token string, members *[]serf.Member) error {
 }
 
 // filterServices redacts services that the token doesn't have access to.
-func (a *Agent) filterServices(token string, services *map[string]*structs.NodeService) error {
+func (a *Agent) filterServices(token string, services map[string]*local.ServiceState) (map[string]*local.ServiceState, error) {
 	// Resolve the token and bail if ACLs aren't enabled.
 	acl, err := a.resolveToken(token)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if acl == nil {
-		return nil
+		return nil, nil
 	}
 
 	// Filter out services based on the service policy.
-	for id, service := range *services {
-		if acl.ServiceRead(service.Service) {
-			continue
+	m := make(map[string]*local.ServiceState)
+	for id, s := range services {
+		switch {
+		case acl.ServiceRead(s.Service.Service):
+			m[id] = s
+		default:
+			a.logger.Printf("[DEBUG] agent: dropping service %q from result due to ACLs", id)
 		}
-		a.logger.Printf("[DEBUG] agent: dropping service %q from result due to ACLs", id)
-		delete(*services, id)
 	}
-	return nil
+	return m, nil
 }
 
 // filterChecks redacts checks that the token doesn't have access to.
-func (a *Agent) filterChecks(token string, checks *map[types.CheckID]*structs.HealthCheck) error {
+func (a *Agent) filterChecks(token string, checks map[types.CheckID]*local.CheckState) (map[types.CheckID]*local.CheckState, error) {
 	// Resolve the token and bail if ACLs aren't enabled.
 	acl, err := a.resolveToken(token)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if acl == nil {
-		return nil
+		return nil, nil
 	}
 
 	// Filter out checks based on the node or service policy.
-	for id, check := range *checks {
-		if len(check.ServiceName) > 0 {
-			if acl.ServiceRead(check.ServiceName) {
-				continue
-			}
-		} else {
-			if acl.NodeRead(a.config.NodeName) {
-				continue
-			}
+	m := make(map[types.CheckID]*local.CheckState)
+	for id, c := range checks {
+		serviceName := c.Check.ServiceName
+		switch {
+		case serviceName != "" && acl.ServiceRead(serviceName):
+			m[id] = c
+		case serviceName == "" && acl.NodeRead(a.config.NodeName):
+			m[id] = c
+		default:
+			a.logger.Printf("[DEBUG] agent: dropping check %q from result due to ACLs", id)
 		}
-		a.logger.Printf("[DEBUG] agent: dropping check %q from result due to ACLs", id)
-		delete(*checks, id)
 	}
-	return nil
+	return m, nil
 }

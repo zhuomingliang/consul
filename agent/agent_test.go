@@ -948,16 +948,10 @@ func TestAgent_ConsulService(t *testing.T) {
 		t.Fatalf("%s service should be registered", structs.ConsulServiceID)
 	}
 
-	// todo(fs): data race
-	func() {
-		a.state.Lock()
-		defer a.state.Unlock()
-
-		// Perform anti-entropy on consul service
-		if err := a.state.syncService(structs.ConsulServiceID); err != nil {
-			t.Fatalf("err: %s", err)
-		}
-	}()
+	// Perform anti-entropy on consul service
+	if err := a.state.SyncService(structs.ConsulServiceID); err != nil {
+		t.Fatalf("err: %s", err)
+	}
 
 	// Consul service should be in sync
 	if !a.state.serviceStatus[structs.ConsulServiceID].inSync {
@@ -1038,12 +1032,12 @@ func TestAgent_PersistService(t *testing.T) {
 	a2 := NewTestAgent(t.Name()+"-a2", cfg)
 	defer a2.Shutdown()
 
-	restored, ok := a2.state.services[svc.ID]
-	if !ok {
-		t.Fatalf("bad: %#v", a2.state.services)
+	restored := a2.state.Service(svc.ID)
+	if restored == nil {
+		t.Fatalf("bad: %#v", a2.state.Services())
 	}
 	if a2.state.serviceTokens[svc.ID] != "mytoken" {
-		t.Fatalf("bad: %#v", a2.state.services[svc.ID])
+		t.Fatalf("bad: %#v", a2.state.Service(svc.ID))
 	}
 	if restored.Port != 8001 {
 		t.Fatalf("bad: %#v", restored)
@@ -1171,8 +1165,8 @@ func TestAgent_PurgeServiceOnDuplicate(t *testing.T) {
 	if _, err := os.Stat(file); err == nil {
 		t.Fatalf("should have removed persisted service")
 	}
-	result, ok := a2.state.services[svc2.ID]
-	if !ok {
+	result := a2.state.Service(svc2.ID)
+	if result == nil {
 		t.Fatalf("missing service registration")
 	}
 	if !reflect.DeepEqual(result.Tags, svc2.Tags) || result.Port != svc2.Port {
@@ -1260,9 +1254,9 @@ func TestAgent_PersistCheck(t *testing.T) {
 	a2 := NewTestAgent(t.Name()+"-a2", cfg)
 	defer a2.Shutdown()
 
-	result, ok := a2.state.checks[check.CheckID]
-	if !ok {
-		t.Fatalf("bad: %#v", a2.state.checks)
+	result := a2.state.Check(check.CheckID)
+	if result == nil {
+		t.Fatalf("bad: %#v", a2.state.Checks())
 	}
 	if result.Status != api.HealthCritical {
 		t.Fatalf("bad: %#v", result)

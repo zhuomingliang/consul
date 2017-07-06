@@ -532,7 +532,7 @@ func TestACL_vetServiceRegister(t *testing.T) {
 
 	// Try to register over a service without write privs to the existing
 	// service.
-	a.state.AddService(&structs.NodeService{
+	a.State.AddService(&structs.NodeService{
 		ID:      "my-service",
 		Service: "other",
 	}, "")
@@ -565,7 +565,7 @@ func TestACL_vetServiceUpdate(t *testing.T) {
 	}
 
 	// Update with write privs.
-	a.state.AddService(&structs.NodeService{
+	a.State.AddService(&structs.NodeService{
 		ID:      "my-service",
 		Service: "service",
 	}, "")
@@ -632,11 +632,11 @@ func TestACL_vetCheckRegister(t *testing.T) {
 
 	// Try to register over a service check without write privs to the
 	// existing service.
-	a.state.AddService(&structs.NodeService{
+	a.State.AddService(&structs.NodeService{
 		ID:      "my-service",
 		Service: "service",
 	}, "")
-	a.state.AddCheck(&structs.HealthCheck{
+	a.State.AddCheck(&structs.HealthCheck{
 		CheckID:     types.CheckID("my-check"),
 		ServiceID:   "my-service",
 		ServiceName: "other",
@@ -651,7 +651,7 @@ func TestACL_vetCheckRegister(t *testing.T) {
 	}
 
 	// Try to register over a node check without write privs to the node.
-	a.state.AddCheck(&structs.HealthCheck{
+	a.State.AddCheck(&structs.HealthCheck{
 		CheckID: types.CheckID("my-node-check"),
 	}, "")
 	err = a.vetCheckRegister("service-rw", &structs.HealthCheck{
@@ -684,11 +684,11 @@ func TestACL_vetCheckUpdate(t *testing.T) {
 	}
 
 	// Update service check with write privs.
-	a.state.AddService(&structs.NodeService{
+	a.State.AddService(&structs.NodeService{
 		ID:      "my-service",
 		Service: "service",
 	}, "")
-	a.state.AddCheck(&structs.HealthCheck{
+	a.State.AddCheck(&structs.HealthCheck{
 		CheckID:     types.CheckID("my-service-check"),
 		ServiceID:   "my-service",
 		ServiceName: "service",
@@ -705,7 +705,7 @@ func TestACL_vetCheckUpdate(t *testing.T) {
 	}
 
 	// Update node check with write privs.
-	a.state.AddCheck(&structs.HealthCheck{
+	a.State.AddCheck(&structs.HealthCheck{
 		CheckID: types.CheckID("my-node-check"),
 	}, "")
 	err = a.vetCheckUpdate("node-rw", "my-node-check")

@@ -51,7 +51,7 @@ func (s *HTTPServer) AgentSelf(resp http.ResponseWriter, req *http.Request) (int
 		Coord:  c,
 		Member: s.agent.LocalMember(),
 		Stats:  s.agent.Stats(),
-		Meta:   s.agent.state.Metadata(),
+		Meta:   s.agent.State.Metadata(),
 	}, nil
 }
 
@@ -94,15 +94,15 @@ func (s *HTTPServer) AgentServices(resp http.ResponseWriter, req *http.Request) 
 	var token string
 	s.parseToken(req, &token)
 
-	services := s.agent.state.Services()
-	if err := s.agent.filterServices(token, &services); err != nil {
+	services, err := s.agent.filterServices(token, s.agent.State.Services())
+	if err != nil {
 		return nil, err
 	}
 
 	// Use empty list instead of nil
 	for _, s := range services {
-		if s.Tags == nil {
-			s.Tags = make([]string, 0)
+		if s.Service.Tags == nil {
+			s.Service.Tags = make([]string, 0)
 		}
 	}
 
@@ -114,15 +114,15 @@ func (s *HTTPServer) AgentChecks(resp http.ResponseWriter, req *http.Request) (i
 	var token string
 	s.parseToken(req, &token)
 
-	checks := s.agent.state.Checks()
-	if err := s.agent.filterChecks(token, &checks); err != nil {
+	checks, err := s.agent.filterChecks(token, s.agent.State.Checks())
+	if err != nil {
 		return nil, err
 	}
 
 	// Use empty list instead of nil
 	for _, c := range checks {
-		if c.ServiceTags == nil {
-			c.ServiceTags = make([]string, 0)
+		if c.Check.ServiceTags == nil {
+			c.Check.ServiceTags = make([]string, 0)
 		}
 	}
 
@@ -223,7 +223,7 @@ func (s *HTTPServer) AgentForceLeave(resp http.ResponseWriter, req *http.Request
 // services and checks to the server. If the operation fails, we only
 // only warn because the write did succeed and anti-entropy will sync later.
 func (s *HTTPServer) syncChanges() {
-	if err := s.agent.state.syncChanges(); err != nil {
+	if err := s.agent.State.SyncChanges(); err != nil {
 		s.agent.logger.Printf("[ERR] agent: failed to sync changes: %v", err)
 	}
 }
