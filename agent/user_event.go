@@ -173,12 +173,12 @@ func (a *Agent) shouldProcessUserEvent(msg *UserEvent) bool {
 		}
 
 		// Scan for a match
-		services := a.state.Services()
+		services := a.State.Services()
 		found := false
 	OUTER:
-		for name, info := range services {
+		for serviceID, s := range services {
 			// Check the service name
-			if !re.MatchString(name) {
+			if !re.MatchString(serviceID) {
 				continue
 			}
 			if tagRe == nil {
@@ -187,7 +187,7 @@ func (a *Agent) shouldProcessUserEvent(msg *UserEvent) bool {
 			}
 
 			// Look for a matching tag
-			for _, tag := range info.Tags {
+			for _, tag := range s.Service.Tags {
 				if !tagRe.MatchString(tag) {
 					continue
 				}
