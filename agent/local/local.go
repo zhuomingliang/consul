@@ -674,7 +674,7 @@ func (l *NodeState) SyncChanges() error {
 		case s.Deleted:
 			err = l.deleteService(id)
 		case s.InSync == false:
-			err = l.SyncService(id)
+			err = l.syncService(id)
 		default:
 			l.logger.Printf("[DEBUG] agent: Service '%s' in sync", id)
 		}
@@ -771,7 +771,7 @@ func (l *NodeState) deleteCheck(id types.CheckID) error {
 
 // syncService is used to sync a service to the server
 // The lock must already be held.
-func (l *NodeState) SyncService(id string) error {
+func (l *NodeState) syncService(id string) error {
 	req := structs.RegisterRequest{
 		Datacenter:      l.config.Datacenter,
 		ID:              l.config.NodeID,

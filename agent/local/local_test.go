@@ -169,15 +169,13 @@ func TestAgentAntiEntropy_Services(t *testing.T) {
 		}
 
 		// Check the local state
-		if len(a.State.Services()) != 6 {
-			r.Fatalf("bad: %v", a.State.Services())
+		services := a.State.Services()
+		if len(services) != 6 {
+			r.Fatalf("bad: %v", services)
 		}
-		if len(a.State.serviceStatus) != 6 {
-			r.Fatalf("bad: %v", a.State.serviceStatus)
-		}
-		for name, status := range a.State.serviceStatus {
-			if !status.inSync {
-				r.Fatalf("should be in sync: %v %v", name, status)
+		for id, s := range services {
+			if !s.InSync {
+				r.Fatalf("should be in sync: %v", id)
 			}
 		}
 	})
@@ -225,20 +223,13 @@ func TestAgentAntiEntropy_Services(t *testing.T) {
 			}
 		}
 
-		// todo(fs): data race
-		a.State.RLock()
-		defer a.State.RUnlock()
-
-		// Check the local state
-		if len(a.State.services) != 5 {
-			r.Fatalf("bad: %v", a.State.services)
+		services := a.State.Services()
+		if len(services) != 5 {
+			r.Fatalf("bad: %v", services)
 		}
-		if len(a.State.serviceStatus) != 5 {
-			r.Fatalf("bad: %v", a.State.serviceStatus)
-		}
-		for name, status := range a.State.serviceStatus {
-			if !status.inSync {
-				r.Fatalf("should be in sync: %v %v", name, status)
+		for id, s := range services {
+			if !s.InSync {
+				r.Fatalf("should be in sync: %v", id)
 			}
 		}
 	})
@@ -246,7 +237,7 @@ func TestAgentAntiEntropy_Services(t *testing.T) {
 
 func TestAgentAntiEntropy_EnableTagOverride(t *testing.T) {
 	t.Parallel()
-	a := &TestAgent{Name: t.Name(), NoInitialSync: true}
+	a := &agent.TestAgent{Name: t.Name(), NoInitialSync: true}
 	a.Start()
 	defer a.Shutdown()
 
@@ -296,20 +287,15 @@ func TestAgentAntiEntropy_EnableTagOverride(t *testing.T) {
 	// Trigger anti-entropy run and wait
 	a.StartSync()
 
-	req := structs.NodeSpecificRequest{
-		Datacenter: "dc1",
-		Node:       a.Config.NodeName,
-	}
-	var services structs.IndexedNodeServices
-
 	retry.Run(t, func(r *retry.R) {
-		//	runtime.Gosched()
+		req := structs.NodeSpecificRequest{
+			Datacenter: "dc1",
+			Node:       a.Config.NodeName,
+		}
+		var services structs.IndexedNodeServices
 		if err := a.RPC("Catalog.NodeServices", &req, &services); err != nil {
 			r.Fatalf("err: %v", err)
 		}
-
-		a.State.RLock()
-		defer a.State.RUnlock()
 
 		// All the services should match
 		for id, serv := range services.NodeServices.Services {
@@ -336,13 +322,9 @@ func TestAgentAntiEntropy_EnableTagOverride(t *testing.T) {
 			}
 		}
 
-		// todo(fs): data race
-		a.State.RLock()
-		defer a.State.RUnlock()
-
-		for name, status := range a.State.serviceStatus {
-			if !status.inSync {
-				r.Fatalf("should be in sync: %v %v", name, status)
+		for id, s := range a.State.Services() {
+			if !s.InSync {
+				r.Fatalf("should be in sync: %v", id)
 			}
 		}
 	})
@@ -350,7 +332,7 @@ func TestAgentAntiEntropy_EnableTagOverride(t *testing.T) {
 
 func TestAgentAntiEntropy_Services_WithChecks(t *testing.T) {
 	t.Parallel()
-	a := NewTestAgent(t.Name(), nil)
+	a := agent.NewTestAgent(t.Name(), nil)
 	defer a.Shutdown()
 
 	{
@@ -493,12 +475,12 @@ service "consul" {
 
 func TestAgentAntiEntropy_Services_ACLDeny(t *testing.T) {
 	t.Parallel()
-	cfg := TestConfig()
+	cfg := agent.TestConfig()
 	cfg.ACLDatacenter = "dc1"
 	cfg.ACLMasterToken = "root"
 	cfg.ACLDefaultPolicy = "deny"
 	cfg.ACLEnforceVersion8 = config.Bool(true)
-	a := &TestAgent{Name: t.Name(), Config: cfg, NoInitialSync: true}
+	a := &agent.TestAgent{Name: t.Name(), Config: cfg, NoInitialSync: true}
 	a.Start()
 	defer a.Shutdown()
 
@@ -665,7 +647,7 @@ func TestAgentAntiEntropy_Services_ACLDeny(t *testing.T) {
 
 func TestAgentAntiEntropy_Checks(t *testing.T) {
 	t.Parallel()
-	a := &TestAgent{Name: t.Name(), NoInitialSync: true}
+	a := &agent.TestAgent{Name: t.Name(), NoInitialSync: true}
 	a.Start()
 	defer a.Shutdown()
 
@@ -898,7 +880,7 @@ func TestAgentAntiEntropy_Checks_ACLDeny(t *testing.T) {
 	cfg.ACLMasterToken = "root"
 	cfg.ACLDefaultPolicy = "deny"
 	cfg.ACLEnforceVersion8 = config.Bool(true)
-	a := &TestAgent{Name: t.Name(), Config: cfg, NoInitialSync: true}
+	a := &agent.TestAgent{Name: t.Name(), Config: cfg, NoInitialSync: true}
 	a.Start()
 	defer a.Shutdown()
 
@@ -1150,7 +1132,7 @@ func TestAgentAntiEntropy_Check_DeferSync(t *testing.T) {
 	t.Parallel()
 	cfg := TestConfig()
 	cfg.CheckUpdateInterval = 500 * time.Millisecond
-	a := &TestAgent{Name: t.Name(), Config: cfg, NoInitialSync: true}
+	a := &agent.TestAgent{Name: t.Name(), Config: cfg, NoInitialSync: true}
 	a.Start()
 	defer a.Shutdown()
 
@@ -1325,7 +1307,7 @@ func TestAgentAntiEntropy_NodeInfo(t *testing.T) {
 	cfg := TestConfig()
 	cfg.NodeID = types.NodeID("40e4a748-2192-161a-0510-9bf59fe950b5")
 	cfg.Meta["somekey"] = "somevalue"
-	a := &TestAgent{Name: t.Name(), Config: cfg, NoInitialSync: true}
+	a := &agent.TestAgent{Name: t.Name(), Config: cfg, NoInitialSync: true}
 	a.Start()
 	defer a.Shutdown()
 
@@ -1586,7 +1568,7 @@ func TestAgent_nestedPauseResume(t *testing.T) {
 
 func TestAgent_sendCoordinate(t *testing.T) {
 	t.Parallel()
-	cfg := TestConfig()
+	cfg := agent.TestConfig()
 	cfg.SyncCoordinateRateTarget = 10.0 // updates/sec
 	cfg.SyncCoordinateIntervalMin = 1 * time.Millisecond
 	cfg.ConsulConfig.CoordinateUpdatePeriod = 100 * time.Millisecond
