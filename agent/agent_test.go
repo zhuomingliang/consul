@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/agent/consul"
+	"github.com/hashicorp/consul/agent/rpc"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
@@ -181,7 +181,7 @@ func TestAgent_CheckPerformanceSettings(t *testing.T) {
 		a := NewTestAgent(t.Name(), cfg)
 		defer a.Shutdown()
 
-		raftMult := time.Duration(consul.DefaultRaftMultiplier)
+		raftMult := time.Duration(rpc.DefaultRaftMultiplier)
 		r := a.consulConfig().RaftConfig
 		def := raft.DefaultConfig()
 		if r.HeartbeatTimeout != raftMult*def.HeartbeatTimeout ||
@@ -933,6 +933,34 @@ func TestAgent_updateTTLCheck(t *testing.T) {
 	}
 	if status.Output != "foo" {
 		t.Fatalf("bad: %v", status)
+	}
+}
+
+func TestAgent_ConsulService(t *testing.T) {
+	t.Parallel()
+	a := NewTestAgent(t.Name(), nil)
+	defer a.Shutdown()
+
+	// Consul service is registered
+	services := a.state.Services()
+	if _, ok := services[structs.ConsulServiceID]; !ok {
+		t.Fatalf("%s service should be registered", structs.ConsulServiceID)
+	}
+
+	// todo(fs): data race
+	func() {
+		a.state.Lock()
+		defer a.state.Unlock()
+
+		// Perform anti-entropy on consul service
+		if err := a.state.syncService(structs.ConsulServiceID); err != nil {
+			t.Fatalf("err: %s", err)
+		}
+	}()
+
+	// Consul service should be in sync
+	if !a.state.serviceStatus[structs.ConsulServiceID].inSync {
+		t.Fatalf("%s service should be in sync", structs.ConsulServiceID)
 	}
 }
 

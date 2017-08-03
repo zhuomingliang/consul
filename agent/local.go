@@ -527,7 +527,7 @@ func (l *localState) setSyncState() error {
 		existing, ok := l.checks[id]
 		if !ok {
 			// The Serf check is created automatically, and does not
-			// need to be deregistered.
+			// need to be registered
 			if id == structs.SerfCheckID {
 				continue
 			}
