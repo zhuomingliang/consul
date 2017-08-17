@@ -12,10 +12,19 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
-	"github.com/hashicorp/consul/acl"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/mitchellh/mapstructure"
 )
+
+// MethodNotAllowedError should be returned by a handler when the HTTP method is not allowed.
+type MethodNotAllowedError struct {
+	Method string
+	Allow  []string
+}
+
+func (e MethodNotAllowedError) Error() string {
+	return fmt.Sprintf("method %s not allowed", e.Method)
+}
 
 // HTTPServer provides an HTTP api for an agent.
 type HTTPServer struct {
@@ -232,11 +241,23 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 
 		handleErr := func(err error) {
 			s.agent.logger.Printf("[ERR] http: Request %s %v, error: %v from=%s", req.Method, logURL, err, req.RemoteAddr)
-			switch {
-			case acl.IsErrPermissionDenied(err) || acl.IsErrNotFound(err):
+			errMsg := err.Error()
+
+			if e, ok := err.(MethodNotAllowedError); ok {
+				// RFC2616 states that for 405 Method Not Allowed the response
+				// MUST include an Allow header containing the list of valid
+				// methods for the requested resource.
+				// https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html
+				resp.Header()["Allow"] = e.Allow
+				resp.WriteHeader(http.StatusMethodNotAllowed) // 405
+				fmt.Fprint(resp, err.Error())
+			} else if strings.Contains(errMsg, "Permission denied") {
 				resp.WriteHeader(http.StatusForbidden) // 403
 				fmt.Fprint(resp, err.Error())
-			default:
+			} else if strings.Contains(errMsg, "ACL not found") {
+				resp.WriteHeader(http.StatusForbidden) // 403
+				fmt.Fprint(resp, err.Error())
+			} else {
 				resp.WriteHeader(http.StatusInternalServerError) // 500
 				fmt.Fprint(resp, err.Error())
 			}
