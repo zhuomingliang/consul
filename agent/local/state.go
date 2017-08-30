@@ -17,9 +17,6 @@ import (
 	"github.com/hashicorp/consul/types"
 )
 
-// permissionDenied is returned when an ACL based rejection happens.
-const permissionDenied = "Permission denied"
-
 // Config is the configuration for the State. It is
 // populated during NewLocalAgent from the agent configuration to avoid
 // race conditions with the agent configuration.
@@ -37,7 +34,8 @@ type ServiceState struct {
 	// Service is the local copy of the service record.
 	Service *structs.NodeService
 
-	// Token is the ACL to update the service record on the server.
+	// Token is the ACL to update or delete the service record on the
+	// server.
 	Token string
 
 	// InSync contains whether the local state of the service record
@@ -62,8 +60,8 @@ type CheckState struct {
 	// Check is the local copy of the health check record.
 	Check *structs.HealthCheck
 
-	// Token is the ACL record to update the health check record
-	// on the server.
+	// Token is the ACL record to update or delete the health check
+	// record on the server.
 	Token string
 
 	// CriticalTime is the last time the health check status went
@@ -72,8 +70,8 @@ type CheckState struct {
 	CriticalTime time.Time
 
 	// DeferCheck is used to delay the sync of a health check when
-	// only the status has changed.
-	// todo(fs): ^^ this needs double checking...
+	// only the output has changed. This rate limits changes which
+	// do not affect the state of the node and/or service.
 	DeferCheck *time.Timer
 
 	// InSync contains whether the local state of the health check
@@ -105,7 +103,7 @@ func (c *CheckState) CriticalFor() time.Duration {
 	return time.Since(c.CriticalTime)
 }
 
-type delegate interface {
+type rpc interface {
 	RPC(method string, args interface{}, reply interface{}) error
 }
 
@@ -114,13 +112,24 @@ type delegate interface {
 // catalog representation
 type State struct {
 	sync.RWMutex
+
+	// Delegate the RPC interface to the consul server or agent.
+	//
+	// It is set after both the state and the consul server/agent have
+	// been created.
+	Delegate rpc
+
+	// TriggerSyncChanges is used to notify the state syncer that a
+	// partial sync should be performed.
+	//
+	// It is set after both the state and the state syncer have been
+	// created.
+	TriggerSyncChanges func()
+
 	logger *log.Logger
 
 	// Config is the agent config
 	config Config
-
-	// delegate is the consul interface to use for keeping in sync
-	delegate delegate
 
 	// nodeInfoInSync tracks whether the server has our correct top-level
 	// node information in sync
@@ -135,37 +144,19 @@ type State struct {
 	// metadata tracks the local metadata fields
 	metadata map[string]string
 
-	// triggerCh is used to inform of a change to local state
-	// that requires anti-entropy with the server
-	triggerCh chan struct{}
-
 	// tokens contains the ACL tokens
 	tokens *token.Store
 }
 
 // NewLocalState creates a  is used to initialize the local state
-func NewState(c Config, lg *log.Logger, tokens *token.Store, triggerCh chan struct{}) *State {
+func NewState(c Config, lg *log.Logger, tokens *token.Store) *State {
 	return &State{
-		config:    c,
-		logger:    lg,
-		services:  make(map[string]*ServiceState),
-		checks:    make(map[types.CheckID]*CheckState),
-		metadata:  make(map[string]string),
-		triggerCh: triggerCh,
-		tokens:    tokens,
-	}
-}
-
-func (l *State) SetDelegate(d delegate) {
-	l.delegate = d
-}
-
-// changeMade is used to trigger an anti-entropy run
-func (l *State) changeMade() {
-	// todo(fs): IMO, the non-blocking nature of this call should be hidden in the syncer
-	select {
-	case l.triggerCh <- struct{}{}:
-	default:
+		config:   c,
+		logger:   lg,
+		services: make(map[string]*ServiceState),
+		checks:   make(map[types.CheckID]*CheckState),
+		metadata: make(map[string]string),
+		tokens:   tokens,
 	}
 }
 
@@ -216,7 +207,7 @@ func (l *State) AddServiceState(s *ServiceState) {
 	defer l.Unlock()
 
 	l.services[s.Service.ID] = s
-	l.changeMade()
+	l.TriggerSyncChanges()
 }
 
 // RemoveService is used to remove a service entry from the local state.
@@ -235,7 +226,7 @@ func (l *State) RemoveService(id string) error {
 	// entry around until it is actually removed.
 	s.InSync = false
 	s.Deleted = true
-	l.changeMade()
+	l.TriggerSyncChanges()
 
 	return nil
 }
@@ -350,7 +341,7 @@ func (l *State) AddCheckState(c *CheckState) {
 	defer l.Unlock()
 
 	l.checks[c.Check.CheckID] = c
-	l.changeMade()
+	l.TriggerSyncChanges()
 }
 
 // RemoveCheck is used to remove a health check from the local state.
@@ -371,7 +362,7 @@ func (l *State) RemoveCheck(id types.CheckID) error {
 	// entry around until it is actually removed.
 	c.InSync = false
 	c.Deleted = true
-	l.changeMade()
+	l.TriggerSyncChanges()
 
 	return nil
 }
@@ -423,7 +414,7 @@ func (l *State) UpdateCheck(id types.CheckID, status, output string) {
 					return
 				}
 				c.InSync = false
-				l.changeMade()
+				l.TriggerSyncChanges()
 			})
 		}
 		return
@@ -433,7 +424,7 @@ func (l *State) UpdateCheck(id types.CheckID, status, output string) {
 	c.Check.Status = status
 	c.Check.Output = output
 	c.InSync = false
-	l.changeMade()
+	l.TriggerSyncChanges()
 }
 
 // Check returns the locally registered check that the
@@ -529,12 +520,12 @@ func (l *State) updateSyncState() error {
 	}
 
 	var out1 structs.IndexedNodeServices
-	if err := l.delegate.RPC("Catalog.NodeServices", &req, &out1); err != nil {
+	if err := l.Delegate.RPC("Catalog.NodeServices", &req, &out1); err != nil {
 		return err
 	}
 
 	var out2 structs.IndexedHealthChecks
-	if err := l.delegate.RPC("Health.NodeChecks", &req, &out2); err != nil {
+	if err := l.Delegate.RPC("Health.NodeChecks", &req, &out2); err != nil {
 		return err
 	}
 
@@ -744,7 +735,7 @@ func (l *State) LoadMetadata(data map[string]string) error {
 	for k, v := range data {
 		l.metadata[k] = v
 	}
-	l.changeMade()
+	l.TriggerSyncChanges()
 	return nil
 }
 
@@ -795,7 +786,7 @@ func (l *State) deleteService(id string) error {
 		WriteRequest: structs.WriteRequest{Token: l.serviceToken(id)},
 	}
 	var out struct{}
-	err := l.delegate.RPC("Catalog.Deregister", &req, &out)
+	err := l.Delegate.RPC("Catalog.Deregister", &req, &out)
 	if err == nil || strings.Contains(err.Error(), "Unknown service") {
 		delete(l.services, id)
 		l.logger.Printf("[INFO] agent: Deregistered service '%s'", id)
@@ -823,7 +814,7 @@ func (l *State) deleteCheck(id types.CheckID) error {
 		WriteRequest: structs.WriteRequest{Token: l.checkToken(id)},
 	}
 	var out struct{}
-	err := l.delegate.RPC("Catalog.Deregister", &req, &out)
+	err := l.Delegate.RPC("Catalog.Deregister", &req, &out)
 	if err == nil || strings.Contains(err.Error(), "Unknown check") {
 		// todo(fs): do we need to stop the deferCheck timer here?
 		delete(l.checks, id)
@@ -880,7 +871,7 @@ func (l *State) syncService(id string) error {
 	}
 
 	var out struct{}
-	err := l.delegate.RPC("Catalog.Register", &req, &out)
+	err := l.Delegate.RPC("Catalog.Register", &req, &out)
 	if err == nil {
 		l.services[id].InSync = true
 		// Given how the register API works, this info is also updated
@@ -927,7 +918,7 @@ func (l *State) syncCheck(id types.CheckID) error {
 	}
 
 	var out struct{}
-	err := l.delegate.RPC("Catalog.Register", &req, &out)
+	err := l.Delegate.RPC("Catalog.Register", &req, &out)
 	if err == nil {
 		l.checks[id].InSync = true
 		// Given how the register API works, this info is also updated
@@ -956,7 +947,7 @@ func (l *State) syncNodeInfo() error {
 		WriteRequest:    structs.WriteRequest{Token: l.tokens.AgentToken()},
 	}
 	var out struct{}
-	err := l.delegate.RPC("Catalog.Register", &req, &out)
+	err := l.Delegate.RPC("Catalog.Register", &req, &out)
 	if err == nil {
 		l.nodeInfoInSync = true
 		l.logger.Printf("[INFO] agent: Synced node info")
