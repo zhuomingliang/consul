@@ -173,6 +173,64 @@ query "bar" {
 	}
 }
 
+func TestACLPolicy_Sentinel_HCL(t *testing.T) {
+	inp := `key "foo/" {
+	policy = "write"
+	sentinel = "<<CODE
+		import \"time\"
+		main = rule { time.hour > 8 }
+		CODE"
+	}`
+
+	exp := &Policy{Keys: []*KeyPolicy{
+		&KeyPolicy{
+			Prefix:   "foo/",
+			Policy:   PolicyWrite,
+			Sentinel: "<<CODE\n\t\timport \"time\"\n\t\tmain = rule { time.hour > 8 }\n\t\tCODE",
+		}}}
+	out, err := Parse(inp)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(out, exp) {
+		t.Fatalf("bad: %#v %#v", out, exp)
+	}
+}
+
+func TestACLPolicy_Sentinel_JSON(t *testing.T) {
+	inp := `{
+	"key": {
+		"": {
+			"policy": "read"
+		},
+		"foo/": {
+			"policy": "write",
+			"sentinel" : "<<CODE\n\t\timport \"time\"\n\t\tmain = rule { time.hour > 8 }\n\t\tCODE"
+		},
+	},
+    }`
+
+	exp := &Policy{Keys: []*KeyPolicy{
+		&KeyPolicy{
+			Prefix: "",
+			Policy: PolicyRead,
+		},
+		&KeyPolicy{
+			Prefix:   "foo/",
+			Policy:   PolicyWrite,
+			Sentinel: "<<CODE\n\t\timport \"time\"\n\t\tmain = rule { time.hour > 8 }\n\t\tCODE",
+		}}}
+	out, err := Parse(inp)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if !reflect.DeepEqual(out, exp) {
+		t.Fatalf("bad: %#v %#v", out, exp)
+	}
+}
+
 func TestACLPolicy_Parse_JSON(t *testing.T) {
 	inp := `{
 	"agent": {

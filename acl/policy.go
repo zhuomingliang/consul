@@ -40,8 +40,9 @@ func (a *AgentPolicy) GoString() string {
 
 // KeyPolicy represents a policy for a key
 type KeyPolicy struct {
-	Prefix string `hcl:",key"`
-	Policy string
+	Prefix   string `hcl:",key"`
+	Policy   string
+	Sentinel string
 }
 
 func (k *KeyPolicy) GoString() string {
